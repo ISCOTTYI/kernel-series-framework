@@ -1,0 +1,8 @@
+jitcdde==1.8.1
+jitcode==1.7.0
+jupyterlab==3.5.0
+matplotlib==3.7.1
+numpy==1.22.3
+SciencePlots==1.0.9
+scipy==1.8.0
+sympy==1.10
