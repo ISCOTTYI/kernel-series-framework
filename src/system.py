@@ -105,3 +105,41 @@ def mackey_glass_ksf_jacobian(N, T, xN, const=None):
 #    IKEDA-LIKE SYSTEM    #
 #                         #
 ###########################
+
+def ikeda_dde_flow(xT):
+    return np.sin(xT)
+
+
+def ikeda_dde_jitc(T):
+    from jitcdde import y, t
+    from symengine import sin
+    return [sin(y(0, t-T))]
+
+
+def ikeda_dde_T_hopf():
+    return np.pi / 2
+
+
+def ikeda_ksf_jitc(N, T):
+    from jitcode import y
+    from symengine import sin
+    T_N = T / N
+    f = [sin(y(N))]
+    for i in range(1, N+1):
+        f.append(
+            (y(i-1) - y(i)) / T_N
+        )
+    return f
+
+
+def ikeda_ksf_jacobian(N, T):
+    # Returns jacobian at FP = k * pi
+    T_N = T / N
+    J = np.zeros((N + 1, N + 1), dtype=np.float64)
+    for row_idx in range(N + 1):
+        if row_idx:
+            J[row_idx][row_idx] = - 1 / T_N
+            J[row_idx][row_idx - 1] = 1 / T_N
+        else:
+            J[row_idx][-1] = -1
+    return J

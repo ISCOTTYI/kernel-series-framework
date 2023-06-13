@@ -28,6 +28,10 @@ def dde_sample_random_h0(m, low=.5, high=1.5):
     return h
 
 
+def dde_constant_h0(m, constant):
+    return np.ones(m) * constant
+
+
 def dde_fsys_st_from_h(ts, h):
     '''
     For a given state history and corresponding times ts, returns a full system
@@ -54,7 +58,8 @@ def dde_initial_fsys_st_from_h(T, h, dh=None):
 def dde_solver(
         jitc_flow, T, m, t_max,
         h0=None, dh0=None,
-        incl_h0=True
+        incl_h0=True, step_on_discontinuities=False,
+
     ):
     '''
     Returns sys-sts until t_max of the MG system. Time delay is T, number of
@@ -78,7 +83,10 @@ def dde_solver(
         # construct t values
         ts = construct_ts(T, m, t_max)
         # integrate system
-        dde.adjust_diff() # instead of step_on_discontinuities()
+        if step_on_discontinuities:
+            dde.step_on_discontinuities()
+        else:
+            dde.adjust_diff() # instead of step_on_discontinuities()
         sts = []
         for ti in ts:
             sts.append(dde.integrate(ti))
