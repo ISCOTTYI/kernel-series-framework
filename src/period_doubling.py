@@ -29,8 +29,13 @@ def find_period_acorr(ts, traj, tol=.02, L_frac=.1):
     period = L_ts[j]
     return period
 
+class T_max_Correction_Error(Exception):
+    pass
 
-def _pd_bisection(T_min, T_max, dT_tol, f_period, max_iter, print_final_periods=False, debug=False):
+def _pd_bisection(
+        T_min, T_max, dT_tol, f_period, max_iter,
+        print_final_periods=False, debug=False, correct_chaos_T_max=False
+    ):
     '''
     dT_tol = |T_max - T_min|, where T_min is below the PD, while T_max is above.
     So the condition for convergence is that |T_max - T_min| < dT_tol and that
@@ -40,8 +45,39 @@ def _pd_bisection(T_min, T_max, dT_tol, f_period, max_iter, print_final_periods=
     period is below PD, change T_min to T_mid, else change T_max. After each
     step check that period doubling still in the middle and whether the
     tolerance is already achieved.
+    If correct_chaos_T_max is set to True, the function will try to correct for
+    the case that the choosen T_max is in the chaotic regime.
     '''
     assert T_min < T_max
+    # This is super messy
+    if correct_chaos_T_max:
+        if debug:
+            print("Correcting T_max...")
+        n = 2
+        p_min = f_period(T_min)
+        corrected = False
+        test_T_max = T_max
+        while n < 10:
+            try:
+                p_max = f_period(test_T_max)
+            except Exception:
+                test_T_max = T_max - (T_max - T_min) / n
+                if debug:
+                    print(f"New T_max = {test_T_max}")
+                n += 1
+            else:
+                if 2 * p_min < p_max and p_max < 3 * p_min:
+                    if debug:
+                        print("T_max corrected!")
+                    T_max = test_T_max
+                    corrected = True
+                    break
+                test_T_max = T_max - (T_max - T_min) / n
+                n += 1
+                if debug:
+                    print(f"New T_max = {test_T_max}")
+        if not corrected:
+            raise T_max_Correction_Error
     assert max_iter > 1
     p_min, p_max = f_period(T_min), f_period(T_max)
     if debug:
@@ -93,16 +129,18 @@ def dde_find_pd_bisec(
 
 def ode_find_pd_bisec(
         jitc_flow_of_T, m, t_max, T_min, T_max,
-        dT_tol=1e-4, tol=.02, L_frac=.2, max_iter=500, print_final_periods=False,
-        debug=False # , solver=ode_solver
+        dT_tol=1e-4, tol=.02, L_frac=.2, max_iter=500, tr_skip=0.2,
+        print_final_periods=False, debug=False,
+        correct_chaos_T_max=False, **solver_kwargs
     ):
     '''
     jitc_flow_of_T is a function with the time delay T as the only parameter
     that returns the flow of the system.
     '''
     def f_period(T):
-        ts, traj = kill_transients(*ode_solver(jitc_flow_of_T(T), T, m, t_max))
+        ts, traj = kill_transients(*ode_solver(jitc_flow_of_T(T), T, m, t_max, **solver_kwargs), tr_skip=tr_skip)
         xs, _ = x_over_xT(traj)
         return find_period_acorr(ts, xs, tol=tol, L_frac=L_frac)
     return _pd_bisection(T_min, T_max, dT_tol, f_period, max_iter,
-                         print_final_periods=print_final_periods, debug=debug)
+                         print_final_periods=print_final_periods, debug=debug,
+                         correct_chaos_T_max=correct_chaos_T_max)

@@ -4,6 +4,12 @@ def power_law(x, a, k):
     return a * x**(-k)
 
 
+def gaussian(x, mu, sigma):
+    ampl = 1 / (sigma * np.sqrt(2 * np.pi))
+    expnt = -1/2 * ((x - mu) / sigma) ** 2
+    return ampl * np.exp(expnt)
+
+
 def spaced_ints(mini, maxi, step_multiplier=1, multiplier_after=0):
     step = 1
     ints = [mini]
